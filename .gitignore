@@ -1,0 +1,19 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+*.egg-info/
+
+# ローカル設定（機密情報を含む可能性があるため除外）
+config/local.yaml
+config/secrets.yaml
+.env
+
+# OS
+.DS_Store

@@ -1,0 +1,33 @@
+[project]
+name = "my-project"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = []
+
+[tool.uv]
+dev-dependencies = [
+    "ruff>=0.9.0",
+    "ty>=0.0.1a6",
+    "pytest>=8.0.0",
+    "pytest-cov>=6.0.0",
+    "pre-commit>=4.0.0",
+    "pyyaml>=6.0",
+]
+
+# --- Ruff ---
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle（スタイル）
+    "F",   # pyflakes（未使用変数・import）
+    "I",   # isort（import順）
+    "UP",  # pyupgrade（古い書き方）
+]
+
+# --- pytest ---
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v"

@@ -1,0 +1,6 @@
+# Docker環境用設定（コミットする）
+# default.yaml を上書きする値のみ記載
+
+data:
+  input_path: /app/data/input.csv
+  output_path: /app/data/output.csv

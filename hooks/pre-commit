@@ -1,0 +1,26 @@
+#!/bin/sh
+# pre-commit hook: 型チェック + pytest を実行する
+
+# --- 型チェック ---
+echo "=== Type checking... ==="
+uv run ty check src/
+
+if [ $? -ne 0 ]; then
+    echo ""
+    echo "❌ 型エラーが検出されました。コミットを中断します。"
+    exit 1
+fi
+
+# --- テスト ---
+echo "=== Running tests... ==="
+uv run pytest tests/ -x -q
+
+if [ $? -ne 0 ]; then
+    echo ""
+    echo "❌ テストが失敗しました。コミットを中断します。"
+    echo "   uv run pytest tests/ -v で詳細を確認してください。"
+    exit 1
+fi
+
+echo "✅ 型チェック・全テスト通過"
+exit 0

@@ -1,0 +1,10 @@
+# デフォルト設定（コミットする）
+# 環境ごとの上書きは local.yaml を作成（.gitignore 済み）
+
+app:
+  name: my-project
+  log_level: INFO
+
+data:
+  input_path: /app/data/input.csv
+  output_path: /app/data/output.csv
