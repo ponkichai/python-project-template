@@ -15,8 +15,9 @@ config/local.yaml
 config/secrets.yaml
 .env
 
-# Claude Code（ローカル設定は除外）
+# Claude Code（ローカル設定・監査ログは除外）
 .claude/settings.local.json
+.claude/audit.log
 
 # OS
 .DS_Store

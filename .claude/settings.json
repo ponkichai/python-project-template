@@ -9,11 +9,20 @@
             "command": "python3 .claude/hooks/pre_bash.py"
           }
         ]
+      },
+      {
+        "matcher": "Write|Edit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 .claude/hooks/pre_write.py"
+          }
+        ]
       }
     ],
     "PostToolUse": [
       {
-        "matcher": "WebFetch|WebSearch",
+        "matcher": "WebFetch|WebSearch|mcp__github__",
         "hooks": [
           {
             "type": "command",
@@ -26,12 +35,28 @@
   "permissions": {
     "allow": [
       "Bash(make:*)",
-      "Bash(uv:*)",
-      "Bash(git:*)",
+      "Bash(uv sync:*)",
+      "Bash(uv run:*)",
+      "Bash(uv add:*)",
+      "Bash(uv remove:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git pull:*)",
+      "Bash(git fetch:*)",
+      "Bash(git checkout:*)",
+      "Bash(git branch:*)",
       "Bash(gh:*)",
-      "Bash(docker:*)",
-      "Bash(ruff:*)",
-      "Bash(pytest:*)"
+      "Bash(docker build:*)",
+      "Bash(docker run:*)",
+      "Bash(docker compose:*)",
+      "Bash(mkdir:*)",
+      "Bash(ls:*)",
+      "Bash(cp:*)",
+      "Bash(mv:*)"
     ]
   }
 }

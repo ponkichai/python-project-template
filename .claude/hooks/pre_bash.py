@@ -1,77 +1,54 @@
 #!/usr/bin/env python3
-"""
-PreToolUse hook: Bash コマンド実行前に危険なパターンを検出する。
-
-Claude Code から標準入力でツール情報（JSON）が渡される。
-exit code 2 でブロック、0 で通過。
-"""
-
+"""PreToolUse hook: Bash コマンドの安全性をスキャン。exit 2 でブロック。"""
 import json
 import re
 import sys
+from datetime import datetime
+from pathlib import Path
 
-# 危険なコマンドパターン
-DANGEROUS_PATTERNS = [
-    (r"curl\s+.+\|\s*(bash|sh)", "curl pipe to shell"),
-    (r"wget\s+.+\|\s*(bash|sh)", "wget pipe to shell"),
-    (r"eval\s*\$\(", "eval with command substitution"),
-    (r"base64\s+-d.+\|\s*(bash|sh)", "base64 decode pipe to shell"),
-    (r"rm\s+-rf\s+/(?!\S)", "rm -rf /"),
-    (r">\s*/etc/", "write to /etc/"),
-    (r"chmod\s+777", "chmod 777"),
+PATTERNS = [
+    # コマンドインジェクション
+    (r"curl\s+.+\|\s*(ba)?sh",                          "CRITICAL", "curl pipe to shell"),
+    (r"wget\s+.+\|\s*(ba)?sh",                          "CRITICAL", "wget pipe to shell"),
+    (r"eval\s*\$\(",                                     "CRITICAL", "eval injection"),
+    (r"base64\s+-d.+\|\s*(ba)?sh",                      "CRITICAL", "base64 decode to shell"),
+    (r"bash\s+-i\s+>&\s*/dev/tcp",                      "CRITICAL", "reverse shell"),
+    (r"python3?\s+-c\s+['\"].*os\.(system|exec|popen)", "CRITICAL", "python -c os exec"),
+    # データ窃取
+    (r"curl\s+.+\s+-d\s+@",                             "HIGH",     "curl file upload"),
+    (r"\|\s*nc\s+\S+\s+\d+",                            "HIGH",     "netcat exfiltration"),
+    (r"(cat|curl)\s+.*\.(ssh|aws|env).*\|",             "HIGH",     "credentials exfiltration"),
+    # hook・設定の改ざん
+    (r"\.claude/hooks/",                                 "CRITICAL", "hook script tampering"),
+    (r"git\s+config.+core\.hookspath",                   "HIGH",     "git hook path override"),
+    # 破壊的操作
+    (r"rm\s+-rf\s+(~/|/home/|/Users/)",                 "HIGH",     "rm home directory"),
+    (r">\s*/etc/",                                       "HIGH",     "write to /etc/"),
+    (r"chmod\s+777",                                     "MEDIUM",   "chmod 777"),
 ]
-
-# 機密パスパターン
-SENSITIVE_PATHS = [
-    r"/etc/passwd",
-    r"/etc/shadow",
-    r"~/\.ssh/",
-    r"~/.aws/credentials",
-    r"\.env$",
-]
-
-
-def check_command(command: str) -> list[tuple[str, str]]:
-    """コマンド文字列を検査し、検出された(レベル, 説明)のリストを返す。"""
-    findings = []
-
-    for pattern, description in DANGEROUS_PATTERNS:
-        if re.search(pattern, command, re.IGNORECASE):
-            findings.append(("CRITICAL", description))
-
-    for pattern in SENSITIVE_PATHS:
-        if re.search(pattern, command, re.IGNORECASE):
-            findings.append(("HIGH", f"sensitive path access: {pattern}"))
-
-    return findings
 
 
 def main() -> None:
-    try:
-        data = json.load(sys.stdin)
-    except json.JSONDecodeError:
-        sys.exit(0)  # JSON解析失敗は通過させる
-
-    tool_name = data.get("tool_name", "")
-    if tool_name != "Bash":
+    data = json.load(sys.stdin)
+    if data.get("tool_name") != "Bash":
         sys.exit(0)
 
-    command = data.get("tool_input", {}).get("command", "")
-    if not command:
-        sys.exit(0)
-
-    findings = check_command(command)
+    cmd = data.get("tool_input", {}).get("command", "")
+    findings = [(lvl, desc) for pat, lvl, desc in PATTERNS if re.search(pat, cmd, re.IGNORECASE)]
     if not findings:
         sys.exit(0)
 
-    # 検出された場合はブロック
-    print("🚨 セキュリティチェック: 危険なコマンドが検出されました", file=sys.stderr)
-    for level, description in findings:
-        print(f"  [{level}] {description}", file=sys.stderr)
-    print(f"  コマンド: {command[:200]}", file=sys.stderr)
-    print("実行を中断します。意図した操作であれば直接ターミナルで実行してください。", file=sys.stderr)
+    log = Path(".claude/audit.log")
+    log.parent.mkdir(exist_ok=True)
+    with log.open("a") as f:
+        f.write(f"[{datetime.now().isoformat()}] PRE_BASH BLOCKED: {cmd[:200]}\n")
+        for lvl, desc in findings:
+            f.write(f"  [{lvl}] {desc}\n")
 
-    sys.exit(2)  # exit code 2 = ブロック
+    print("🚨 危険なコマンドが検出されました", file=sys.stderr)
+    for lvl, desc in findings:
+        print(f"  [{lvl}] {desc}", file=sys.stderr)
+    sys.exit(2)
 
 
 if __name__ == "__main__":

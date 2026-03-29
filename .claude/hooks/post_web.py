@@ -1,73 +1,64 @@
 #!/usr/bin/env python3
-"""
-PostToolUse hook: WebFetch / WebSearch の結果を受け取った直後にスキャンする。
-
-外部コンテンツに含まれるプロンプトインジェクション試行を検出する。
-exit code 2 でブロック、0 で通過。
-"""
-
+"""PostToolUse hook: WebFetch/WebSearch/GitHub MCP 結果のプロンプトインジェクション検出。"""
 import json
 import re
 import sys
+from datetime import datetime
+from pathlib import Path
 
-# プロンプトインジェクションのパターン
-INJECTION_PATTERNS = [
+PATTERNS = [
     (r"ignore\s+(previous|above|all)\s+instructions?", "CRITICAL", "指示の上書き試行"),
-    (r"you\s+are\s+now\s+", "CRITICAL", "ロール書き換え試行"),
-    (r"disregard\s+(your|all)\s+", "CRITICAL", "指示の無視命令"),
-    (r"new\s+instructions?:?", "HIGH", "新しい指示の挿入"),
-    (r"system\s*prompt", "HIGH", "システムプロンプトへの言及"),
-    (r"<\s*/?system\s*>", "HIGH", "systemタグの挿入"),
-    (r"as\s+an?\s+(ai|llm|assistant).{0,30}(you\s+must|you\s+should)", "MEDIUM", "AIへの直接命令"),
-    (r"forget\s+(everything|what)", "MEDIUM", "記憶の消去命令"),
+    (r"you\s+are\s+now\s+",                            "CRITICAL", "ロール書き換え試行"),
+    (r"disregard\s+(your|all)\s+",                     "CRITICAL", "指示の無視命令"),
+    (r"new\s+instructions?:?",                          "HIGH",     "指示の挿入"),
+    (r"<\s*/?system\s*>",                              "HIGH",     "systemタグ挿入"),
+    (r"system\s*prompt",                               "HIGH",     "システムプロンプト言及"),
+    (r"forget\s+(everything|what)",                     "MEDIUM",   "記憶の消去命令"),
+    (r"as\s+an?\s+(ai|llm|assistant).{0,30}you\s+(must|should)", "MEDIUM", "AIへの直接命令"),
 ]
 
 
-def scan_content(content: str) -> list[tuple[str, str, str]]:
-    """コンテンツをスキャンし (レベル, パターン名, マッチ箇所) のリストを返す。"""
-    findings = []
-    for pattern, level, description in INJECTION_PATTERNS:
-        matches = re.findall(pattern, content, re.IGNORECASE)
-        if matches:
-            findings.append((level, description, str(matches[0])))
-    return findings
+def extract_text(obj: object) -> str:
+    """JSON オブジェクトから再帰的にテキストを抽出する。"""
+    if isinstance(obj, str):
+        return obj
+    if isinstance(obj, dict):
+        return " ".join(extract_text(v) for v in obj.values())
+    if isinstance(obj, list):
+        return " ".join(extract_text(v) for v in obj)
+    return ""
 
 
 def main() -> None:
-    try:
-        data = json.load(sys.stdin)
-    except json.JSONDecodeError:
-        sys.exit(0)
-
+    data = json.load(sys.stdin)
     tool_name = data.get("tool_name", "")
-    if tool_name not in ("WebFetch", "WebSearch"):
+    is_target = (
+        tool_name in ("WebFetch", "WebSearch")
+        or tool_name.startswith("mcp__github__")
+    )
+    if not is_target:
         sys.exit(0)
 
-    # ツール結果のテキストを取得
-    tool_result = data.get("tool_result", "")
-    if isinstance(tool_result, dict):
-        content = tool_result.get("content", "")
-    elif isinstance(tool_result, str):
-        content = tool_result
-    else:
-        sys.exit(0)
-
-    findings = scan_content(content)
+    content = extract_text(data.get("tool_result", ""))
+    findings = [(lvl, desc) for pat, lvl, desc in PATTERNS if re.search(pat, content, re.IGNORECASE)]
     if not findings:
         sys.exit(0)
 
-    critical_or_high = [f for f in findings if f[0] in ("CRITICAL", "HIGH")]
+    log = Path(".claude/audit.log")
+    log.parent.mkdir(exist_ok=True)
+    with log.open("a") as f:
+        f.write(f"[{datetime.now().isoformat()}] POST_WEB ({tool_name}):\n")
+        for lvl, desc in findings:
+            f.write(f"  [{lvl}] {desc}\n")
 
-    print("🚨 外部コンテンツスキャン: 不審なパターンが検出されました", file=sys.stderr)
-    for level, description, match in findings:
-        print(f"  [{level}] {description}: '{match}'", file=sys.stderr)
+    critical_or_high = [f for f in findings if f[0] in ("CRITICAL", "HIGH")]
+    print("🚨 外部コンテンツに不審なパターンが検出されました", file=sys.stderr)
+    for lvl, desc in findings:
+        print(f"  [{lvl}] {desc}", file=sys.stderr)
 
     if critical_or_high:
-        print("このコンテンツの適用をブロックします。オーナーに確認を要請してください。", file=sys.stderr)
-        sys.exit(2)  # CRITICAL/HIGH → ブロック
-    else:
-        print("警告: 内容を慎重に確認してから利用してください。", file=sys.stderr)
-        sys.exit(0)  # MEDIUM → 警告のみ・通過
+        print("ブロックします。オーナーに確認を要請してください。", file=sys.stderr)
+        sys.exit(2)
 
 
 if __name__ == "__main__":
