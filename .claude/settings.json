@@ -6,10 +6,32 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 .claude/hooks/security_check.py"
+            "command": "python3 .claude/hooks/pre_bash.py"
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "WebFetch|WebSearch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 .claude/hooks/post_web.py"
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(make:*)",
+      "Bash(uv:*)",
+      "Bash(git:*)",
+      "Bash(gh:*)",
+      "Bash(docker:*)",
+      "Bash(ruff:*)",
+      "Bash(pytest:*)"
     ]
   }
 }
