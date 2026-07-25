@@ -1,0 +1,25 @@
+{
+  // AIエージェント隔離サンドボックス。VS Code / Claude Code の devcontainer として開く。
+  // 「檻(コンテナ)＋見張り(egress firewall)」でホストとネットワークからエージェントを隔離する。
+  "name": "python-agent-sandbox",
+  "build": {
+    "dockerfile": "../Dockerfile",
+    "context": ".."
+  },
+  // NET_ADMIN / NET_RAW: 起動時に iptables で egress ファイアウォールを張るために必要。
+  "runArgs": ["--cap-add=NET_ADMIN", "--cap-add=NET_RAW"],
+  // 非root で作業（コンテナ内権限を最小化）
+  "remoteUser": "dev",
+  "workspaceFolder": "/workspace",
+  // ソースだけをマウント。~/.ssh や ~/.aws 等ホストの機密はマウントしない（隔離の肝）。
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind",
+  // コンテナ起動のたびに通信先を許可リストへ制限する
+  "postStartCommand": "sudo /usr/local/bin/init-firewall.sh",
+  // 依存インストール等の初期セットアップ（作成時に一度）
+  "postCreateCommand": "make setup",
+  "customizations": {
+    "vscode": {
+      "extensions": ["charliermarsh.ruff", "ms-python.python"]
+    }
+  }
+}

@@ -6,5 +6,5 @@ app:
   log_level: INFO
 
 data:
-  input_path: /app/data/input.csv
-  output_path: /app/data/output.csv
+  input_path: data/input.csv
+  output_path: data/output.csv
