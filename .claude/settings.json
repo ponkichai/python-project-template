@@ -29,6 +29,15 @@
             "command": "python3 .claude/hooks/post_web.py"
           }
         ]
+      },
+      {
+        "matcher": "Write|Edit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 .claude/hooks/post_edit.py"
+          }
+        ]
       }
     ]
   },
@@ -57,6 +66,14 @@
       "Bash(ls:*)",
       "Bash(cp:*)",
       "Bash(mv:*)"
+    ],
+    "deny": [
+      "Read(.env)",
+      "Read(**/*.pem)",
+      "Read(**/*.key)",
+      "Write(.env)",
+      "Write(**/*.pem)",
+      "Write(**/*.key)"
     ]
   }
 }

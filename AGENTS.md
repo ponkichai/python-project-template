@@ -30,7 +30,24 @@
 |----|------|---------|
 | 環境層 | devcontainer + egress firewall | どのエージェントでも |
 | リポジトリ層 | pre-commit（Ruff・gitleaks・型・テスト）+ CI | 人間・どのエージェントでも |
-| ハーネス層 | `.claude/`（hook・スキル） | Claude Code のみ（任意のボーナス） |
+| ハーネス層 | `.claude/`（hook・スキル） | Claude Code のみ（任意の先行検知ボーナス） |
+
+**ハーネス層（Claude Code）が追加で先行検知するもの**（コミット前の水際防御。実行前にブロックするのがリポジトリ層のgitleaks等との違い）：
+
+| タイミング | 対象 | 処理 |
+|-----------|------|------|
+| PreToolUse | Bash | 危険コマンド・mainブランチへの直接コミット/pushをブロック |
+| PreToolUse | Write / Edit | 機密ファイル（`.env`, `*.pem`, `*.key` 等）への書き込みをブロック |
+| PostToolUse | WebFetch / WebSearch | プロンプトインジェクション検出 |
+| PostToolUse | Write / Edit | Pythonファイル編集後に ruff lint を自動実行しフィードバック |
+
+## ハーネスの更新方針（Design for Volatility）
+
+ハーネス層は完成品ではなく、エージェント・ツールの進化に合わせて継続的に見直す。
+
+- ハーネス層（現在は `.claude/`）の設定・hookは半年〜1年ごとにレビューする
+- 特定のプロンプトパターンや古い制限に固執しない
+- 軽量・シンプルに保ち、ハーネスやモデルの刷新（乗り換えを含む）に即対応できる状態を維持する
 
 ## 開発フロー
 

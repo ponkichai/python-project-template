@@ -2,6 +2,7 @@
 """PreToolUse hook: Bash コマンドの安全性をスキャン。exit 2 でブロック。"""
 import json
 import re
+import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -28,6 +29,21 @@ PATTERNS = [
 ]
 
 
+def check_main_branch_commit(cmd: str) -> list[tuple[str, str]]:
+    """mainブランチへの直接コミット/プッシュを検出する。"""
+    if not re.search(r"git\s+(commit|push)\b", cmd):
+        return []
+    try:
+        branch = subprocess.check_output(
+            ["git", "branch", "--show-current"], text=True, stderr=subprocess.DEVNULL
+        ).strip()
+    except subprocess.SubprocessError:
+        return []
+    if branch in ("main", "master"):
+        return [("HIGH", f"mainブランチ ({branch}) への直接コミット/プッシュ — feature branchを使うこと")]
+    return []
+
+
 def main() -> None:
     data = json.load(sys.stdin)
     if data.get("tool_name") != "Bash":
@@ -35,6 +51,8 @@ def main() -> None:
 
     cmd = data.get("tool_input", {}).get("command", "")
     findings = [(lvl, desc) for pat, lvl, desc in PATTERNS if re.search(pat, cmd, re.IGNORECASE)]
+    findings += check_main_branch_commit(cmd)
+
     if not findings:
         sys.exit(0)
 

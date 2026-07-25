@@ -10,6 +10,10 @@ PROTECTED = [
     (r"\.claude/hooks/",                          "CRITICAL", "hook script tampering"),
     (r"\.git/hooks/",                             "CRITICAL", "git hook tampering"),
     (r"\.(bashrc|zshrc|profile|bash_profile)$",   "HIGH",     "shell profile tampering"),
+    # 機密ファイルの上書き防止（Defense in Depth）
+    (r"(^|/)\.env$",                              "HIGH",     ".env file write"),
+    (r"\.(pem|key|p12|pfx)$",                     "HIGH",     "private key file write"),
+    (r"(credentials|secrets)(\.ya?ml|\.json|$)",  "HIGH",     "credentials file write"),
 ]
 
 
