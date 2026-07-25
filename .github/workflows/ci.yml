@@ -1,0 +1,53 @@
+name: CI
+
+# main への push と、main への PR で lint・型チェック・テストを自動実行する。
+# ローカルの `make check` と同じ内容をCI上でも強制する（pre-commit/hookの取りこぼしを防ぐ）。
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # 機密情報スキャン（漏洩検出は履歴全体が対象のため独立ジョブ）
+  secrets-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install
+
+      - name: Install dependencies
+        run: uv sync --all-extras --dev
+
+      - name: Lint
+        run: uv run ruff check src/ tests/
+
+      - name: Format check
+        run: uv run ruff format --check src/ tests/
+
+      - name: Type check
+        run: uv run ty check src/
+
+      - name: Test
+        run: uv run pytest tests/ --cov=src --cov-report=term-missing
+
+      - name: Dependency vulnerability audit
+        run: uv run pip-audit

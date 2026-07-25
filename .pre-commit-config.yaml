@@ -1,17 +1,42 @@
 repos:
   # Ruff: lint（静的解析）+ format（整形）
+  # 対象はプロジェクトコードのみ（.claude/ はハーネスアダプタなので対象外。Makefileと同スコープ）
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.9.0
+    rev: v0.16.0
     hooks:
-      - id: ruff
+      - id: ruff-check
         args: [--fix]
+        files: ^(src|tests)/
       - id: ruff-format
+        files: ^(src|tests)/
+
+  # gitleaks: 機密情報（APIキー・トークン等）のコミットを検出・ブロック
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
 
   # 基本的なファイルチェック
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: v6.0.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
       - id: check-yaml
       - id: check-merge-conflict
+
+  # 型チェック + テスト（プロジェクトのuv環境で実行）
+  - repo: local
+    hooks:
+      - id: ty
+        name: ty type-check
+        entry: uv run ty check src/
+        language: system
+        types: [python]
+        pass_filenames: false
+      - id: pytest
+        name: pytest
+        entry: uv run pytest tests/ -x -q
+        language: system
+        types: [python]
+        pass_filenames: false
