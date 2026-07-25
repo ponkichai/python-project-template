@@ -10,6 +10,9 @@ htmlcov/
 dist/
 *.egg-info/
 
+# テンプレートなのでlockfileはコミットしない（各プロジェクトで独自に生成する）
+uv.lock
+
 # ローカル設定（機密情報を含む可能性があるため除外）
 config/local.yaml
 config/secrets.yaml

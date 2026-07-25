@@ -1,5 +1,5 @@
 # === AIエージェント隔離サンドボックス用イメージ ===
-# 目的: Claude Code(AIエージェント)を「このコンテナの中」で動かし、
+# 目的: AIエージェント(Claude Code / Codex / Gemini CLI 等)を「このコンテナの中」で動かし、
 #       ホスト環境（~/.ssh, ~/.aws, 他プロジェクト等）から隔離して被害範囲を閉じ込める。
 # これは「アプリを実行して出荷する本番イメージ」ではない。
 # アプリのコンテナ配布が必要になったら Dockerfile.app 等を別途用意すること。
@@ -11,7 +11,7 @@ FROM python:3.12-slim
 # iptables,ipset : egress ファイアウォール(init-firewall.sh)用
 # dnsutils       : dig（許可リストのドメイン→IP解決）
 # sudo           : 起動時にファイアウォールを設定するため dev ユーザーへ限定付与
-# nodejs,npm     : Claude Code CLI の実行基盤
+# nodejs,npm     : エージェントCLIの実行基盤（Claude Code / Codex / Gemini CLI 等はNode製）
 RUN apt-get update && apt-get install -y --no-install-recommends \
       git curl ca-certificates sudo iptables ipset dnsutils \
       nodejs npm \
